@@ -1,9 +1,8 @@
-name: Release
+name: Auto Release PR
 
 on:
   pull_request:
-    types:
-      - closed
+    types: [closed]
 
 jobs:
   release:
@@ -43,7 +42,8 @@ jobs:
         if: steps.bump.outputs.type == 'none'
         run: echo "No version bump requested. Skipping release."
 
-      - name: Set git author for automated commits
+      - name: Set git author
+        if: steps.bump.outputs.type != 'none'
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
@@ -52,33 +52,47 @@ jobs:
         if: steps.bump.outputs.type != 'none'
         run: npm run release:${{ steps.bump.outputs.type }}
 
-      - name: Push changes back
+      - name: Get bumped version
+        if: steps.bump.outputs.type != 'none'
+        id: version
+        run: |
+          # Read version from package.json
+          version=$(node -p "require('./package.json').version")
+          echo "bumped_version=$version" >> $GITHUB_OUTPUT
+
+      - name: Create release branch
         if: steps.bump.outputs.type != 'none'
         run: |
-          git push --follow-tags origin main
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Get latest tag
-        if: steps.bump.outputs.type != 'none'
-        id: get_tag
-        run: echo "tag=$(git describe --tags --abbrev=0)" >> $GITHUB_OUTPUT
+          branch_name="release/v${{ steps.version.outputs.bumped_version }}"
+          git checkout -b $branch_name
+          echo "branch_name=$branch_name" >> $GITHUB_OUTPUT
 
       - name: Extract latest changelog section
         if: steps.bump.outputs.type != 'none'
         id: changelog
         run: |
-          awk '/^## / {if (p) exit; p=1} p' CHANGELOG.md > latest_changelog.md
+          # Get the first changelog section (the latest release)
+          awk '/^## / {if(p) exit; p=1} p' CHANGELOG.md > latest_changelog.md
           echo "latest_changelog<<EOF" >> $GITHUB_OUTPUT
           cat latest_changelog.md >> $GITHUB_OUTPUT
           echo "EOF" >> $GITHUB_OUTPUT
 
-      - name: Create GitHub Release
+      - name: Push release branch
         if: steps.bump.outputs.type != 'none'
-        uses: softprops/action-gh-release@v2
+        run: git push origin HEAD
+
+      - name: Create pull request into main
+        if: steps.bump.outputs.type != 'none'
+        uses: peter-evans/create-pull-request@v5
         with:
-          tag_name: ${{ steps.get_tag.outputs.tag }}
-          name: Release ${{ steps.get_tag.outputs.tag }}
-          body: ${{ steps.changelog.outputs.latest_changelog }}
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          token: ${{ secrets.GITHUB_TOKEN }}
+          commit-message: "chore(release): bump version and update changelog"
+          branch: ${{ steps.bump.outputs.branch_name }}
+          title: "Release: v${{ steps.version.outputs.bumped_version }}"
+          body: |
+            This PR was created automatically by GitHub Actions to bump the version
+            and update the changelog based on PR #${{ github.event.pull_request.number }}.
+
+            ### Changelog
+            ${{ steps.changelog.outputs.latest_changelog }}
+          base: main
