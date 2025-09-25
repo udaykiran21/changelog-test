@@ -42,6 +42,11 @@ jobs:
         if: steps.bump.outputs.type == 'none'
         run: echo "No version bump requested. Skipping release."
 
+      - name: Set git author for automated commits
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
       - name: Run standard-version
         if: steps.bump.outputs.type != 'none'
         run: npm run release:${{ steps.bump.outputs.type }}
@@ -49,8 +54,6 @@ jobs:
       - name: Push changes back
         if: steps.bump.outputs.type != 'none'
         run: |
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git push --follow-tags origin main
 
       - name: Get latest tag
