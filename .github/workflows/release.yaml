@@ -76,7 +76,7 @@ jobs:
 
       - name: Create GitHub Release
         if: steps.bump.outputs.type != 'none'
-        uses: ncipollo/release-action@v2
+        uses: ncipollo/release-action@v1
         with:
           tag: v${{ steps.version.outputs.bumped_version }}
           name: Release v${{ steps.version.outputs.bumped_version }}
