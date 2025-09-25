@@ -1,4 +1,4 @@
-name: Auto Release PR
+name: Auto Version Bump, Changelog & Release
 
 on:
   pull_request:
@@ -10,7 +10,7 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout repo
+      - name: Checkout repository
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
@@ -56,43 +56,32 @@ jobs:
         if: steps.bump.outputs.type != 'none'
         id: version
         run: |
-          # Read version from package.json
           version=$(node -p "require('./package.json').version")
           echo "bumped_version=$version" >> $GITHUB_OUTPUT
-
-      - name: Create release branch
-        if: steps.bump.outputs.type != 'none'
-        run: |
-          branch_name="release/v${{ steps.version.outputs.bumped_version }}"
-          git checkout -b $branch_name
-          echo "branch_name=$branch_name" >> $GITHUB_OUTPUT
 
       - name: Extract latest changelog section
         if: steps.bump.outputs.type != 'none'
         id: changelog
         run: |
-          # Get the first changelog section (the latest release)
           awk '/^## / {if(p) exit; p=1} p' CHANGELOG.md > latest_changelog.md
           echo "latest_changelog<<EOF" >> $GITHUB_OUTPUT
           cat latest_changelog.md >> $GITHUB_OUTPUT
           echo "EOF" >> $GITHUB_OUTPUT
 
-      - name: Push release branch
+      - name: Push changes and tags to main
         if: steps.bump.outputs.type != 'none'
-        run: git push origin HEAD
+        run: git push --follow-tags origin main
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Create pull request into main
+      - name: Create GitHub Release
         if: steps.bump.outputs.type != 'none'
-        uses: peter-evans/create-pull-request@v5
+        uses: ncipollo/release-action@v2
         with:
-          token: ${{ secrets.GITHUB_TOKEN }}
-          commit-message: "chore(release): bump version and update changelog"
-          branch: ${{ steps.bump.outputs.branch_name }}
-          title: "Release: v${{ steps.version.outputs.bumped_version }}"
+          tag: v${{ steps.version.outputs.bumped_version }}
+          name: Release v${{ steps.version.outputs.bumped_version }}
           body: |
-            This PR was created automatically by GitHub Actions to bump the version
-            and update the changelog based on PR #${{ github.event.pull_request.number }}.
-
-            ### Changelog
             ${{ steps.changelog.outputs.latest_changelog }}
-          base: main
+          draft: false
+          prerelease: false
+          token: ${{ secrets.GITHUB_TOKEN }}
