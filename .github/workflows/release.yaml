@@ -70,7 +70,7 @@ jobs:
 
       - name: Push changes and tags to main
         if: steps.bump.outputs.type != 'none'
-        run: git push --follow-tags origin main
+        run: git push --follow-tags origin main --force
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
