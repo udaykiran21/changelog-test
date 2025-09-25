@@ -36,6 +36,7 @@ jobs:
             echo "type=patch" >> $GITHUB_OUTPUT
           else
             echo "type=none" >> $GITHUB_OUTPUT
+          fi
 
       - name: Stop if no bump type
         if: steps.bump.outputs.type == 'none'
