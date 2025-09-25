@@ -1,0 +1,77 @@
+name: Release
+
+on:
+  pull_request:
+    types:
+      - closed
+
+jobs:
+  release:
+    if: github.event.pull_request.merged == true && github.event.pull_request.base.ref == 'main'
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Determine release type from PR title
+        id: bump
+        run: |
+          title="${{ github.event.pull_request.title }}"
+          if [[ "$title" == \[major\]* ]]; then
+            echo "type=major" >> $GITHUB_OUTPUT
+          elif [[ "$title" == \[minor\]* ]]; then
+            echo "type=minor" >> $GITHUB_OUTPUT
+          elif [[ "$title" == \[patch\]* ]]; then
+            echo "type=patch" >> $GITHUB_OUTPUT
+          else
+            echo "type=none" >> $GITHUB_OUTPUT
+
+      - name: Stop if no bump type
+        if: steps.bump.outputs.type == 'none'
+        run: echo "No version bump requested. Skipping release."
+
+      - name: Run standard-version
+        if: steps.bump.outputs.type != 'none'
+        run: npm run release:${{ steps.bump.outputs.type }}
+
+      - name: Push changes back
+        if: steps.bump.outputs.type != 'none'
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git push --follow-tags origin main
+
+      - name: Get latest tag
+        if: steps.bump.outputs.type != 'none'
+        id: get_tag
+        run: echo "tag=$(git describe --tags --abbrev=0)" >> $GITHUB_OUTPUT
+
+      - name: Extract latest changelog section
+        if: steps.bump.outputs.type != 'none'
+        id: changelog
+        run: |
+          awk '/^## / {if (p) exit; p=1} p' CHANGELOG.md > latest_changelog.md
+          echo "latest_changelog<<EOF" >> $GITHUB_OUTPUT
+          cat latest_changelog.md >> $GITHUB_OUTPUT
+          echo "EOF" >> $GITHUB_OUTPUT
+
+      - name: Create GitHub Release
+        if: steps.bump.outputs.type != 'none'
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ steps.get_tag.outputs.tag }}
+          name: Release ${{ steps.get_tag.outputs.tag }}
+          body: ${{ steps.changelog.outputs.latest_changelog }}
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
