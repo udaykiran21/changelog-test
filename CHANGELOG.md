@@ -2,6 +2,18 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+## [1.5.0](https://github.com/udaykiran21/changelog-test/compare/v1.4.0...v1.5.0) (2025-10-04)
+
+
+### Features
+
+* added a log statment ([c4aaf6c](https://github.com/udaykiran21/changelog-test/commit/c4aaf6c25b087950b0c0bccb0b10b9bdfbde3426))
+
+
+### Bug Fixes
+
+* fixed wording ([b52f3ed](https://github.com/udaykiran21/changelog-test/commit/b52f3edffa88af2dd4531ebdbb9cb40c92c9ecb3))
+
 ## [1.4.0](https://github.com/udaykiran21/changelog-test/compare/v1.3.0...v1.4.0) (2025-09-26)
 
 
